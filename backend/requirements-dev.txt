@@ -1,0 +1,3 @@
+# 本地测试额外依赖（docker compose 内跑测试时不需要，因已有外部 Postgres）
+-r requirements.txt
+pgserver==0.1.4

@@ -6,7 +6,11 @@ from jose import JWTError, jwt
 from litestar import Litestar, Request, get, post
 from litestar.exceptions import HTTPException
 from litestar.response import Response
-from litestar.status_codes import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
+from litestar.status_codes import (
+    HTTP_401_UNAUTHORIZED,
+    HTTP_403_FORBIDDEN,
+    HTTP_500_INTERNAL_SERVER_ERROR,
+)
 from passlib.context import CryptContext
 
 from db import SCHEMA, connect
@@ -111,8 +115,7 @@ async def list_logs(request: Request) -> list:
                       created_by, created_at, processed_at
                FROM iv_scans ORDER BY id DESC"""
         ).fetchall()
-        from h01_list_trap import expose_list
-        return expose_list([dump(r) for r in rows])
+        return [dump(r) for r in rows]
 
 
 @post("/api/logs", status_code=201)
@@ -129,17 +132,30 @@ async def create_log(request: Request) -> dict:
     except (TypeError, ValueError):
         raise HTTPException(status_code=400, detail="电压电流与填充因子必须是数字")
     now = datetime.now(timezone.utc)
-    with connect() as conn:
-        row = conn.execute(
-            """INSERT INTO iv_scans
-               (string_code, voc_v, isc_a, fill_factor, status, created_by, created_at)
-               VALUES (%s,%s,%s,%s,'pending',%s,%s)
-               RETURNING id, string_code, voc_v, isc_a, fill_factor, status, verdict, reason,
-                         created_by, created_at, processed_at""",
-            (code, voc, isc, ff, user["username"], now),
-        ).fetchone()
-        conn.commit()
+    conn = connect()
+    try:
+        # 整条写入包在一个事务里：任何一步失败都显式回滚，
+        # 绝不让 pending 记录或通知在半写状态下落库。
+        with conn.transaction():
+            row = conn.execute(
+                """INSERT INTO iv_scans
+                   (string_code, voc_v, isc_a, fill_factor, status, created_by, created_at)
+                   VALUES (%s,%s,%s,%s,'pending',%s,%s)
+                   RETURNING id, string_code, voc_v, isc_a, fill_factor, status, verdict, reason,
+                             created_by, created_at, processed_at""",
+                (code, voc, isc, ff, user["username"], now),
+            ).fetchone()
         return dump(row)
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise HTTPException(
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="扫描记录写入失败，请重试"
+        )
+    finally:
+        conn.close()
 
 
 app = Litestar(route_handlers=[health, login, list_logs, create_log])

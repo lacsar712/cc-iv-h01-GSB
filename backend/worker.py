@@ -28,8 +28,6 @@ def claim_id(conn, scan_id: int | None) -> bool:
         if row is None:
             return False
         verdict, reason = judge(float(row["fill_factor"]))
-        from h01_extra_trap import on_claimer_save
-        verdict, reason = on_claimer_save(verdict, reason)
         conn.execute(
             """UPDATE iv_scans SET status='done', verdict=%s, reason=%s, processed_at=%s
                WHERE id=%s""",
