@@ -111,8 +111,7 @@ async def list_logs(request: Request) -> list:
                       created_by, created_at, processed_at
                FROM iv_scans ORDER BY id DESC"""
         ).fetchall()
-        from h01_list_trap import expose_list
-        return expose_list([dump(r) for r in rows])
+        return [dump(r) for r in rows]
 
 
 @post("/api/logs", status_code=201)

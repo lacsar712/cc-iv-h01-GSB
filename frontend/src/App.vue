@@ -27,7 +27,7 @@
       <section>
         <table>
           <thead>
-            <tr><th>编号</th><th>组串</th><th>Voc</th><th>Isc</th><th>FF</th><th>状态</th><th>结论</th></tr>
+            <tr><th>编号</th><th>组串</th><th>Voc</th><th>Isc</th><th>FF</th><th>状态</th><th>结论</th><th>详情</th></tr>
           </thead>
           <tbody>
             <tr v-for="row in logs" :key="row.id">
@@ -37,7 +37,8 @@
               <td>{{ row.isc_a }}</td>
               <td>{{ row.fill_factor }}</td>
               <td><span class="tag" :class="row.status === 'pending' ? 'pending' : 'ok'">{{ row.status === 'pending' ? '待处理' : '已完成' }}</span></td>
-              <td><span v-if="row.verdict" class="tag bad"><!-- h01-trap-tone -->{{ row.verdict }}</span><span v-else>—</span></td>
+              <td><span v-if="row.verdict" class="tag" :class="row.verdict === '合格' ? 'ok' : 'bad'">{{ row.verdict }}</span><span v-else>—</span></td>
+              <td class="reason">{{ row.reason || "—" }}</td>
             </tr>
           </tbody>
         </table>
@@ -139,6 +140,7 @@ button.secondary { background: #365314; }
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 th, td { text-align: left; padding: 0.45rem; border-bottom: 1px solid #166534; }
 .tag { padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.8rem; }
+td.reason { color: #a7f3d0; font-size: 0.8rem; }
 .ok { background: #14532d; color: #bbf7d0; }
 .bad { background: #7f1d1d; color: #fecaca; }
 .pending { background: #854d0e; color: #fde68a; }
